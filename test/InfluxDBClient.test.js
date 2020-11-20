@@ -113,59 +113,27 @@ describe('get fields', () => {
   configParams.INFLUXDB_BUCKET = 'my-bucket'
   configParams.INFLUXDB_MEASUREMENT = 'circleci'
 
+  beforeEach(() => {
+    Utilities.parseCsv.mockImplementation(rows => {
+      return rows.split('\n').map(row => row.trim().split(','))
+    })
+  })
+
   test('success', () => {
-    // noinspection JSConsecutiveCommasInArrayLiteral
-    const csv = [
-      [, 'result', 'table', '_value'],
-      [, '_result', 0, 'host'],
-      [, '_result', 0, 'reponame'],
-      [, '_result', 0, 'vcs_url'],
-      [, , ,],
-    ]
-
-    // Mocks for tags
-    Utilities.parseCsv.mockReturnValue(csv)
-
-    // Mocks for fields
-    const response = `#group,false,false,false,false,false,false,false,false
-#datatype,string,long,boolean,double,long,string,unsignedLong,dateTime:RFC3339
-#default,_result,,,,,,,
-,result,table,fieldBool,fieldFloat,fieldInteger,fieldString,fieldUInteger,fieldDate
-,,0,true,-1234456000000000000000000000000000000000000000000000000000000000000000000000000,12485903,this is a string,6,2020-06-02T12:45:56.16866267Z
-
-`
+    const fs = require('fs')
+    const csv = fs.readFileSync(__dirname + '/schema1.csv', 'utf8')
     let httpResponse = jest.fn()
     httpResponse.getContentText = jest.fn()
-    httpResponse.getContentText.mockReturnValue(response)
+    httpResponse.getContentText.mockReturnValue(csv)
 
     UrlFetchApp.fetch.mockReturnValue(httpResponse)
 
     let fields = client.getFields(configParams)
-    expect(UrlFetchApp.fetch.mock.calls.length).toBe(2)
+    expect(UrlFetchApp.fetch.mock.calls.length).toBe(1)
     expect(UrlFetchApp.fetch.mock.calls[0][0]).toBe(
       'http://localhost:8086/api/v2/query?org=my-org'
     )
     expect(UrlFetchApp.fetch.mock.calls[0][1]).toStrictEqual({
-      contentType: 'application/vnd.flux',
-      headers: {
-        Accept: 'application/csv',
-        Authorization: 'Token my-token',
-        'User-Agent': 'influxdb-gds-connector',
-      },
-      method: 'post',
-      payload: `import "influxdata/influxdb/v1"
-
-v1.tagKeys(
-  bucket: "my-bucket",
-  predicate: (r) => r._measurement == "circleci",
-  start: duration(v: uint(v: 1970-01-01) - uint(v: now()))
-)
-|> filter(fn: (r) => r._value != "_start" and r._value != "_stop" and r._value != "_measurement" and r._value != "_field")`,
-    })
-    expect(UrlFetchApp.fetch.mock.calls[1][0]).toBe(
-      'http://localhost:8086/api/v2/query?org=my-org'
-    )
-    expect(UrlFetchApp.fetch.mock.calls[1][1]).toStrictEqual({
       contentType: 'application/json',
       headers: {
         Accept: 'application/csv',
@@ -173,7 +141,25 @@ v1.tagKeys(
         'User-Agent': 'influxdb-gds-connector',
       },
       method: 'post',
-      payload: `{"query":"from(bucket: \\"my-bucket\\") |> range(start: time(v: 1)) |> filter(fn: (r) => r[\\"_measurement\\"] == \\"circleci\\") |> drop(columns: [\\"host\\", \\"reponame\\", \\"vcs_url\\"]) |> pivot(rowKey:[\\"_time\\"], columnKey: [\\"_field\\"], valueColumn: \\"_value\\") |> drop(columns: [\\"_start\\", \\"_stop\\", \\"_time\\", \\"_measurement\\"]) |> limit(n:1)", "type":"flux", "dialect":{"header":true,"delimiter":",","annotations":["datatype","group","default"],"commentPrefix":"#","dateTimeFormat":"RFC3339"}}`,
+      payload: `{\"query\":\"import "influxdata/influxdb/v1"
+
+bucket = "my-bucket"
+measurement = "circleci"
+start_range = duration(v: uint(v: 1970-01-01) - uint(v: now()))
+
+v1.tagKeys(
+  bucket: bucket,
+  predicate: (r) => r._measurement == measurement,
+  start: start_range
+) |> filter(fn: (r) => r._value != "_start" and r._value != "_stop" and r._value != "_measurement" and r._value != "_field")
+  |> yield(name: "tags")
+
+from(bucket: bucket)
+  |> range(start: start_range)
+  |> filter(fn: (r) => r["_measurement"] == measurement)
+  |> keep(fn: (column) => column == "_field" or column == "_value")
+  |> unique(column: "_field")
+  |> yield(name: "fields")\", \"type\":\"flux\", \"dialect\":{\"header\":true,\"delimiter\":\",\",\"annotations\":[\"datatype\",\"group\",\"default\"],\"commentPrefix\":\"#\",\"dateTimeFormat\":\"RFC3339\"}}`,
     })
 
     expect(fields).toHaveLength(11)
@@ -282,28 +268,11 @@ v1.tagKeys(
   })
 
   test('replace spaces in name', () => {
-    // noinspection JSConsecutiveCommasInArrayLiteral
-    const csv = [
-      [, 'result', 'table', '_value'],
-      [, '_result', 0, 'Entity'],
-      [, '_result', 0, 'ISO code'],
-      [, , ,],
-    ]
-
-    // Mocks for tags
-    Utilities.parseCsv.mockReturnValue(csv)
-
-    // Mocks for fields
-    const response = `#group,false,false,false,false,false,false,false,false,false,false,false
-#datatype,string,long,long,double,long,double,long,double,string,string,string
-#default,_result,,,,,,,,,,
-,result,table,7-day smoothed daily change,7-day smoothed daily change per thousand,Cumulative total,Cumulative total per thousand,Daily change in cumulative total,Daily change in cumulative total per thousand,Notes,Source URL,Source label
-,,0,52349,0.158,14022,1.156,9314,0.064,"Turkish Minister for Health said 7286 tests were conducted on 25th March, so we can subtract that from 26th March figure. This is consistent with Wikipedia",https://covid-19-schweiz.bagapps.ch/de-3.html,COVID Tracking Project
-
-`
+    const fs = require('fs')
+    const csv = fs.readFileSync(__dirname + '/schema2.csv', 'utf8')
     let httpResponse = jest.fn()
     httpResponse.getContentText = jest.fn()
-    httpResponse.getContentText.mockReturnValue(response)
+    httpResponse.getContentText.mockReturnValue(csv)
 
     UrlFetchApp.fetch.mockReturnValue(httpResponse)
 

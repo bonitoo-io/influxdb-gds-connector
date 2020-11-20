@@ -13,30 +13,29 @@ v1.tagValues(
   start: duration(v: uint(v: 1970-01-01) - uint(v: now()))
 )`
 
-const QUERY_TAGS = (bucket_name, measurement_name) =>
-  `import "influxdata/influxdb/v1"
+const QUERY_SCHEMA = (bucket_name, measurement_name) => {
+  let query = `import "influxdata/influxdb/v1"
+
+bucket = "${bucket_name}"
+measurement = "${measurement_name}"
+start_range = duration(v: uint(v: 1970-01-01) - uint(v: now()))
 
 v1.tagKeys(
-  bucket: "${bucket_name}",
-  predicate: (r) => r._measurement == "${measurement_name}",
-  start: duration(v: uint(v: 1970-01-01) - uint(v: now()))
-)
-|> filter(fn: (r) => r._value != "_start" and r._value != "_stop" and r._value != "_measurement" and r._value != "_field")`
+  bucket: bucket,
+  predicate: (r) => r._measurement == measurement,
+  start: start_range
+) |> filter(fn: (r) => r._value != "_start" and r._value != "_stop" and r._value != "_measurement" and r._value != "_field")
+  |> yield(name: "tags")
 
-const QUERY_FIELDS = (bucket_name, measurement_name, tags) => {
-  let concat = tags
-    .map(function (tag) {
-      return `\\"${tag}\\"`
-    })
-    .join(', ')
+from(bucket: bucket)
+  |> range(start: start_range)
+  |> filter(fn: (r) => r["_measurement"] == measurement)
+  |> keep(fn: (column) => column == "_field" or column == "_value")
+  |> unique(column: "_field")
+  |> yield(name: "fields")`
+
   return (
-    `{"query":"from(bucket: \\"${bucket_name}\\") ` +
-    `|> range(start: time(v: 1)) ` +
-    `|> filter(fn: (r) => r[\\"_measurement\\"] == \\"${measurement_name}\\") ` +
-    `|> drop(columns: [${concat}]) ` +
-    `|> pivot(rowKey:[\\"_time\\"], columnKey: [\\"_field\\"], valueColumn: \\"_value\\") ` +
-    `|> drop(columns: [\\"_start\\", \\"_stop\\", \\"_time\\", \\"_measurement\\"]) ` +
-    `|> limit(n:1)", ` +
+    `{"query":"${query}", ` +
     `"type":"flux", ` +
     `"dialect":{"header":true,"delimiter":",","annotations":["datatype","group","default"],"commentPrefix":"#","dateTimeFormat":"RFC3339"}}`
   )
@@ -144,6 +143,8 @@ InfluxDBClient.prototype.getMeasurements = function (configParams) {
  * @returns fields definition
  */
 InfluxDBClient.prototype.getFields = function (configParams) {
+  const result = []
+  const tags = []
   const fields = []
 
   const measurement = {}
@@ -152,38 +153,49 @@ InfluxDBClient.prototype.getFields = function (configParams) {
   measurement.dataType = 'STRING'
   measurement.semantics = {}
   measurement.semantics.conceptType = 'DIMENSION'
-  fields.push(measurement)
+  result.push(measurement)
 
-  let queryTags = QUERY_TAGS(
+  let querySchema = QUERY_SCHEMA(
     configParams.INFLUXDB_BUCKET,
     configParams.INFLUXDB_MEASUREMENT
   )
-  let tags = this._query(configParams, queryTags)
 
-  tags.forEach(tag => {
-    const field = {}
-    field.name = _sanitizeFieldName(tag)
-    field.label = tag
-    field.dataType = 'STRING'
-    field.semantics = {}
-    field.semantics.conceptType = 'DIMENSION'
-    fields.push(field)
-  })
-
-  let queryFields = QUERY_FIELDS(
-    configParams.INFLUXDB_BUCKET,
-    configParams.INFLUXDB_MEASUREMENT,
-    tags
-  )
-
-  let tables = this._query(configParams, queryFields, {
+  let tables = this._query(configParams, querySchema, {
     mapping: this._extractData,
     contentType: 'application/json',
   })
 
   tables.forEach(table => {
-    table.fields.forEach(field => fields.push(field))
+    let type = table.defaults[1]
+    let csv = Utilities.parseCsv(table.rows.join('\n'), ',')
+    let value_index = table.names.indexOf('_value')
+    switch (type) {
+      case 'fields':
+        let field_index = table.names.indexOf('_field')
+        csv.forEach(row => {
+          let name = row[field_index]
+          let dataType = table.data_types[value_index]
+          let field = parseFieldSchema(name, dataType)
+          fields.push(field)
+        })
+        break
+      case 'tags':
+        csv.forEach(row => {
+          let tag = row[value_index].trim()
+          const field = {}
+          field.name = _sanitizeFieldName(tag)
+          field.label = tag
+          field.dataType = 'STRING'
+          field.semantics = {}
+          field.semantics.conceptType = 'DIMENSION'
+          tags.push(field)
+        })
+        break
+    }
   })
+
+  result.push(...tags)
+  result.push(...fields)
 
   const timestamp = {}
   timestamp.name = '_time'
@@ -194,9 +206,9 @@ InfluxDBClient.prototype.getFields = function (configParams) {
   timestamp.semantics.conceptType = 'DIMENSION'
   timestamp.semantics.semanticType = TIMESTAMP_SEMANTICS_TYPE
   timestamp.semantics.semanticGroup = TIMESTAMP_SEMANTICS_GROUP
-  fields.push(timestamp)
+  result.push(timestamp)
 
-  return fields
+  return result
 }
 
 /**
@@ -378,6 +390,38 @@ function _toOriginalFieldName(name) {
   return name.replace(/__space__/g, ' ').replace(/__minus__/g, '-')
 }
 
+function parseFieldSchema(name, type) {
+  const field = {}
+  field.name = _sanitizeFieldName(name.trim())
+  field.label = name.trim()
+  field.semantics = {}
+  field.semantics.conceptType = 'METRIC'
+  field.semantics.isReaggregatable = false
+
+  switch (type.trim()) {
+    case 'double':
+    case 'long':
+    case 'unsignedLong':
+      field.dataType = 'NUMBER'
+      field.semantics.semanticGroup = 'NUMBER'
+      field.semantics.isReaggregatable = true
+      break
+    case 'boolean':
+      field.dataType = 'BOOLEAN'
+      break
+    case 'dateTime:RFC3339':
+      field.dataType = 'STRING'
+      field.semantics.semanticType = TIMESTAMP_SEMANTICS_TYPE
+      field.semantics.semanticGroup = TIMESTAMP_SEMANTICS_GROUP
+      break
+    default:
+      field.dataType = 'STRING'
+      break
+  }
+
+  return field
+}
+
 class InfluxDBTable {
   group
   data_types
@@ -390,33 +434,7 @@ class InfluxDBTable {
     let data_types = this.data_types.slice(3)
     let names = this.names.slice(3)
     data_types.forEach((type, index) => {
-      const field = {}
-      field.name = _sanitizeFieldName(names[index].trim())
-      field.label = names[index].trim()
-      field.semantics = {}
-      field.semantics.conceptType = 'METRIC'
-      field.semantics.isReaggregatable = false
-
-      switch (type.trim()) {
-        case 'double':
-        case 'long':
-        case 'unsignedLong':
-          field.dataType = 'NUMBER'
-          field.semantics.semanticGroup = 'NUMBER'
-          field.semantics.isReaggregatable = true
-          break
-        case 'boolean':
-          field.dataType = 'BOOLEAN'
-          break
-        case 'dateTime:RFC3339':
-          field.dataType = 'STRING'
-          field.semantics.semanticType = TIMESTAMP_SEMANTICS_TYPE
-          field.semantics.semanticGroup = TIMESTAMP_SEMANTICS_GROUP
-          break
-        default:
-          field.dataType = 'STRING'
-          break
-      }
+      const field = parseFieldSchema(names[index], type)
       this.fields.push(field)
     })
   }

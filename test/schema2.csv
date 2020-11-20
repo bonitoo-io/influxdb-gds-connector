@@ -1,0 +1,61 @@
+#group,false,false,false,true
+#datatype,string,long,long,string
+#default,fields,,,
+,result,table,_value,_field
+,,0,52349,7-day smoothed daily change
+
+#group,false,false,false,true
+#datatype,string,long,long,string
+#default,fields,,,
+,result,table,_value,_field
+,,1,0.158,7-day smoothed daily change per thousand
+
+#group,false,false,false,true
+#datatype,string,long,double,string
+#default,fields,,,
+,result,table,_value,_field
+,,2,14022,Cumulative total
+
+#group,false,false,false,true
+#datatype,string,long,double,string
+#default,fields,,,
+,result,table,_value,_field
+,,3,1.156,Cumulative total per thousand
+
+#group,false,false,false,true
+#datatype,string,long,long,string
+#default,fields,,,
+,result,table,_value,_field
+,,4,9314,Daily change in cumulative total
+
+#group,false,false,false,true
+#datatype,string,long,double,string
+#default,fields,,,
+,result,table,_value,_field
+,,5,0.064,Daily change in cumulative total per thousand
+
+#group,false,false,false,true
+#datatype,string,long,string,string
+#default,fields,,,
+,result,table,_value,_field
+,,6,"Turkish Minister for Health said 7286 tests were conducted on 25th March so we can subtract that from 26th March figure. This is consistent with Wikipedia",Notes
+
+#group,false,false,false,true
+#datatype,string,long,string,string
+#default,fields,,,
+,result,table,_value,_field
+,,7,https://covid-19-schweiz.bagapps.ch/de-3.html,Source URL
+
+#group,false,false,false,true
+#datatype,string,long,string,string
+#default,fields,,,
+,result,table,_value,_field
+,,8,COVID Tracking Project,Source label
+
+#group,false,false,false
+#datatype,string,long,string
+#default,tags,,
+,result,table,_value
+,,0,Entity
+,,0,ISO code
+
