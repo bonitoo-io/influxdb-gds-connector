@@ -68,6 +68,55 @@ This is because the connector has requested authorization to make requests to an
 
 > This warning will no longer be display after the connector will include in Partner connectors gallery - see [#2](https://github.com/influxdata/influxdb-gds-connector/issues/2)
 
+### Query takes too much time
+
+The connector uses two types of query: `schema query` and `data query`. 
+Please, check both of them that correctly works with your dataset.
+
+#### Schema query
+
+It is used to determine all your fields from configured `Bucket` and `Measurement`. The query is use only in the configuration.
+
+```flux
+import "influxdata/influxdb/v1"
+
+bucket = "my-bucket"
+measurement = "my-measurement"
+start_range = duration(v: uint(v: 1970-01-01) - uint(v: now()))
+
+v1.tagKeys(
+  bucket: bucket,
+  predicate: (r) => r._measurement == measurement,
+  start: start_range
+) |> filter(fn: (r) => r._value != "_start" and r._value != "_stop" and r._value != "_measurement" and r._value != "_field")
+  |> yield(name: "tags")
+
+from(bucket: bucket)
+  |> range(start: start_range)
+  |> filter(fn: (r) => r["_measurement"] == measurement)
+  |> keep(fn: (column) => column == "_field" or column == "_value")
+  |> unique(column: "_field")
+  |> yield(name: "fields")
+```
+
+#### Data query
+
+It is used for retrieve data from InfluxDB. 
+The time-range is configured via [Date Range Control Widget](https://support.google.com/datastudio/answer/6291067?hl=en).
+
+```flux
+bucket = "my-bucket"
+measurement = "my-measurement"
+// Configure DataRange in Data Studio - https://support.google.com/datastudio/answer/6291067?hl=en
+start = time(v: 1) // or start of specified Data Range
+stop = now() // or end of specified Data Range
+
+from(bucket: bucket) 
+|> range(start: start, stop: stop) 
+|> filter(fn: (r) => r["_measurement"] == measurement) 
+|> pivot(rowKey:["_time"], columnKey: ["_field"], valueColumn: "_value")
+```
+
 [Data Studio]: https://datastudio.google.com
 [Connector]: https://developers.google.com/datastudio/connector
 [InfluxDB v2]: https://www.influxdata.com/products/influxdb-overview/influxdb-2-0/
