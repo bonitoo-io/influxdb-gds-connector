@@ -296,6 +296,280 @@ from(bucket: bucket)
       '_time',
     ])
   })
+
+  test('COVID-19 template', () => {
+    const fs = require('fs')
+    const csv = fs.readFileSync(__dirname + '/schema3.csv', 'utf8')
+    let httpResponse = jest.fn()
+    httpResponse.getContentText = jest.fn()
+    httpResponse.getContentText.mockReturnValue(csv)
+
+    UrlFetchApp.fetch.mockReturnValue(httpResponse)
+
+    let fields = client.getFields(configParams)
+    expect(fields).toHaveLength(7)
+    expect(fields[0]).toEqual({
+      dataType: 'STRING',
+      label: 'measurement',
+      name: '_measurement',
+      semantics: {
+        conceptType: 'DIMENSION',
+      },
+    })
+    expect(fields[1]).toEqual({
+      dataType: 'STRING',
+      label: 'location',
+      name: 'location',
+      semantics: {
+        conceptType: 'DIMENSION',
+      },
+    })
+    expect(fields[2]).toEqual({
+      dataType: 'NUMBER',
+      label: 'RecoveredChange',
+      name: 'RecoveredChange',
+      semantics: {
+        conceptType: 'METRIC',
+        isReaggregatable: true,
+        semanticGroup: 'NUMBER',
+      },
+    })
+    expect(fields[3]).toEqual({
+      dataType: 'NUMBER',
+      label: 'new_cases',
+      name: 'new_cases',
+      semantics: {
+        conceptType: 'METRIC',
+        isReaggregatable: true,
+        semanticGroup: 'NUMBER',
+      },
+    })
+    expect(fields[4]).toEqual({
+      dataType: 'NUMBER',
+      label: 'new_deaths',
+      name: 'new_deaths',
+      semantics: {
+        conceptType: 'METRIC',
+        isReaggregatable: true,
+        semanticGroup: 'NUMBER',
+      },
+    })
+    expect(fields[5]).toEqual({
+      dataType: 'NUMBER',
+      label: 'population',
+      name: 'population',
+      semantics: {
+        conceptType: 'METRIC',
+        isReaggregatable: true,
+        semanticGroup: 'NUMBER',
+      },
+    })
+    expect(fields[6]).toEqual({
+      dataType: 'STRING',
+      label: 'time',
+      name: '_time',
+      semantics: {
+        conceptType: 'DIMENSION',
+        isReaggregatable: false,
+        semanticGroup: 'DATETIME',
+        semanticType: 'YEAR_MONTH_DAY_SECOND',
+      },
+    })
+  })
+
+  test('Large Schema', () => {
+    const fs = require('fs')
+    const csv = fs.readFileSync(__dirname + '/schema4.csv', 'utf8')
+    let httpResponse = jest.fn()
+    httpResponse.getContentText = jest.fn()
+    httpResponse.getContentText.mockReturnValue(csv)
+
+    UrlFetchApp.fetch.mockReturnValue(httpResponse)
+
+    let fields = client.getFields(configParams)
+    // cat schema4.csv | grep -v "^#" | grep -v "^[[:space:]]*$" | grep -v "^,result" | wc -l
+    expect(fields).toHaveLength(1087 + 2)
+
+    expect(fields[0]).toEqual({
+      dataType: 'STRING',
+      label: 'measurement',
+      name: '_measurement',
+      semantics: {
+        conceptType: 'DIMENSION',
+      },
+    })
+    expect(fields[1]).toEqual({
+      dataType: 'STRING',
+      label: 'Cycle_Number',
+      name: 'Cycle_Number',
+      semantics: {
+        conceptType: 'DIMENSION',
+      },
+    })
+    expect(fields[2]).toEqual({
+      dataType: 'STRING',
+      label: 'Device',
+      name: 'Device',
+      semantics: {
+        conceptType: 'DIMENSION',
+      },
+    })
+    expect(fields[3]).toEqual({
+      dataType: 'STRING',
+      label: 'EWONTime',
+      name: 'EWONTime',
+      semantics: {
+        conceptType: 'DIMENSION',
+      },
+    })
+    expect(fields[4]).toEqual({
+      dataType: 'STRING',
+      label: 'Location',
+      name: 'Location',
+      semantics: {
+        conceptType: 'DIMENSION',
+      },
+    })
+    expect(fields[5]).toEqual({
+      dataType: 'STRING',
+      label: 'TimeStamp',
+      name: 'TimeStamp',
+      semantics: {
+        conceptType: 'DIMENSION',
+      },
+    })
+    expect(fields[6]).toEqual({
+      dataType: 'STRING',
+      label: 'host',
+      name: 'host',
+      semantics: {
+        conceptType: 'DIMENSION',
+      },
+    })
+    expect(fields[7]).toEqual({
+      dataType: 'STRING',
+      label: 'method',
+      name: 'method',
+      semantics: {
+        conceptType: 'DIMENSION',
+      },
+    })
+    expect(fields[8]).toEqual({
+      dataType: 'STRING',
+      label: 'upload',
+      name: 'upload',
+      semantics: {
+        conceptType: 'DIMENSION',
+      },
+    })
+    expect(fields[108]).toEqual({
+      dataType: 'NUMBER',
+      label: '1.Application.Global_Variables.Tag98',
+      name: '1.Application.Global_Variables.Tag98',
+      semantics: {
+        conceptType: 'METRIC',
+        isReaggregatable: true,
+        semanticGroup: 'NUMBER',
+      },
+    })
+    expect(fields[208]).toEqual({
+      dataType: 'NUMBER',
+      label: 'LC600.MainProgram.VslPressBar',
+      name: 'LC600.MainProgram.VslPressBar',
+      semantics: {
+        conceptType: 'METRIC',
+        isReaggregatable: true,
+        semanticGroup: 'NUMBER',
+      },
+    })
+    expect(fields[308]).toEqual({
+      dataType: 'BOOLEAN',
+      label: 'MainProgram.ipflagDoorOpenFull',
+      name: 'MainProgram.ipflagDoorOpenFull',
+      semantics: {
+        conceptType: 'METRIC',
+        isReaggregatable: false,
+      },
+    })
+    expect(fields[408]).toEqual({
+      dataType: 'BOOLEAN',
+      label: 'PLC.DB41.pbSampleAck',
+      name: 'PLC.DB41.pbSampleAck',
+      semantics: {
+        conceptType: 'METRIC',
+        isReaggregatable: false,
+      },
+    })
+    expect(fields[508]).toEqual({
+      dataType: 'NUMBER',
+      label: 'PLC.DB43.ChemChemAdditionSecs',
+      name: 'PLC.DB43.ChemChemAdditionSecs',
+      semantics: {
+        conceptType: 'METRIC',
+        isReaggregatable: true,
+        semanticGroup: 'NUMBER',
+      },
+    })
+    expect(fields[608]).toEqual({
+      dataType: 'NUMBER',
+      label: 'PLC.DB43.spTimeTo250',
+      name: 'PLC.DB43.spTimeTo250',
+      semantics: {
+        conceptType: 'METRIC',
+        isReaggregatable: true,
+        semanticGroup: 'NUMBER',
+      },
+    })
+    expect(fields[708]).toEqual({
+      dataType: 'NUMBER',
+      label: 'PLC.DB55.stDrainTemp_C',
+      name: 'PLC.DB55.stDrainTemp_C',
+      semantics: {
+        conceptType: 'METRIC',
+        isReaggregatable: true,
+        semanticGroup: 'NUMBER',
+      },
+    })
+    expect(fields[808]).toEqual({
+      dataType: 'BOOLEAN',
+      label: 'PLC.audAlarm',
+      name: 'PLC.audAlarm',
+      semantics: {
+        conceptType: 'METRIC',
+        isReaggregatable: false,
+      },
+    })
+    expect(fields[908]).toEqual({
+      dataType: 'NUMBER',
+      label: 'PLC.ptxRecircDisch',
+      name: 'PLC.ptxRecircDisch',
+      semantics: {
+        conceptType: 'METRIC',
+        isReaggregatable: true,
+        semanticGroup: 'NUMBER',
+      },
+    })
+    expect(fields[1008]).toEqual({
+      dataType: 'BOOLEAN',
+      label: 'S7-1200.crNotOverPressure',
+      name: 'S7__minus__1200.crNotOverPressure',
+      semantics: {
+        conceptType: 'METRIC',
+        isReaggregatable: false,
+      },
+    })
+    expect(fields[1088]).toEqual({
+      dataType: 'STRING',
+      label: 'time',
+      name: '_time',
+      semantics: {
+        conceptType: 'DIMENSION',
+        isReaggregatable: false,
+        semanticGroup: 'DATETIME',
+        semanticType: 'YEAR_MONTH_DAY_SECOND',
+      },
+    })
+  })
 })
 
 describe('get data', () => {

@@ -1,0 +1,15 @@
+#group,false,false,false,true
+#datatype,string,long,long,string
+#default,fields,,,
+,result,table,_value,_field
+,,0,0,RecoveredChange
+,,1,11,new_cases
+,,2,0,new_deaths
+,,3,12123198,population
+
+#group,false,false,false
+#datatype,string,long,string
+#default,tags,,
+,result,table,_value
+,,0,location
+
