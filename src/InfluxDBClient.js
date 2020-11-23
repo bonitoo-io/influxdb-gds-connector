@@ -14,25 +14,22 @@ v1.tagValues(
 )`
 
 const QUERY_SCHEMA = (bucket_name, measurement_name) => {
-  let query = `import "influxdata/influxdb/v1"
-
-bucket = "${bucket_name}"
-measurement = "${measurement_name}"
-start_range = duration(v: uint(v: 1970-01-01) - uint(v: now()))
-
-v1.tagKeys(
-  bucket: bucket,
-  predicate: (r) => r._measurement == measurement,
-  start: start_range
-) |> filter(fn: (r) => r._value != "_start" and r._value != "_stop" and r._value != "_measurement" and r._value != "_field")
-  |> yield(name: "tags")
-
-from(bucket: bucket)
-  |> range(start: start_range)
-  |> filter(fn: (r) => r["_measurement"] == measurement)
-  |> keep(fn: (column) => column == "_field" or column == "_value")
-  |> unique(column: "_field")
-  |> yield(name: "fields")`
+  let query = `import \\"influxdata/influxdb/v1\\" ` +
+    `bucket = \\"${bucket_name}\\" ` +
+    `measurement = \\"${measurement_name}\\" ` +
+    `start_range = duration(v: uint(v: 1970-01-01) - uint(v: now())) ` +
+    `v1.tagKeys( ` +
+    `bucket: bucket, ` +
+    `predicate: (r) => r._measurement == measurement, ` +
+    `start: start_range ` +
+    `) |> filter(fn: (r) => r._value != \\"_start\\" and r._value != \\"_stop\\" and r._value != \\"_measurement\\" and r._value != \\"_field\\") ` +
+    `|> yield(name: \\"tags\\") ` +
+    `from(bucket: bucket) ` +
+    `|> range(start: start_range) ` +
+    `|> filter(fn: (r) => r[\\"_measurement\\"] == measurement) ` +
+    `|> keep(fn: (column) => column == \\"_field\\" or column == \\"_value\\") ` +
+    `|> unique(column: \\"_field\\") ` +
+    `|> yield(name: \\"fields\\")`
 
   return (
     `{"query":"${query}", ` +
@@ -423,12 +420,10 @@ function parseFieldSchema(name, type) {
 }
 
 class InfluxDBTable {
-  group
-  data_types
-  defaults
-  names
-  rows = []
-  fields = []
+  constructor() {
+    this.rows = []
+    this.fields = []
+  }
 
   parseSchema() {
     let data_types = this.data_types.slice(3)

@@ -141,25 +141,7 @@ describe('get fields', () => {
         'User-Agent': 'influxdb-gds-connector',
       },
       method: 'post',
-      payload: `{\"query\":\"import "influxdata/influxdb/v1"
-
-bucket = "my-bucket"
-measurement = "circleci"
-start_range = duration(v: uint(v: 1970-01-01) - uint(v: now()))
-
-v1.tagKeys(
-  bucket: bucket,
-  predicate: (r) => r._measurement == measurement,
-  start: start_range
-) |> filter(fn: (r) => r._value != "_start" and r._value != "_stop" and r._value != "_measurement" and r._value != "_field")
-  |> yield(name: "tags")
-
-from(bucket: bucket)
-  |> range(start: start_range)
-  |> filter(fn: (r) => r["_measurement"] == measurement)
-  |> keep(fn: (column) => column == "_field" or column == "_value")
-  |> unique(column: "_field")
-  |> yield(name: "fields")\", \"type\":\"flux\", \"dialect\":{\"header\":true,\"delimiter\":\",\",\"annotations\":[\"datatype\",\"group\",\"default\"],\"commentPrefix\":\"#\",\"dateTimeFormat\":\"RFC3339\"}}`,
+      payload: `{"query":\"import \\"influxdata/influxdb/v1\\" bucket = \\"my-bucket\\" measurement = \\"circleci\\" start_range = duration(v: uint(v: 1970-01-01) - uint(v: now())) v1.tagKeys( bucket: bucket, predicate: (r) => r._measurement == measurement, start: start_range ) |> filter(fn: (r) => r._value != \\"_start\\" and r._value != \\"_stop\\" and r._value != \\"_measurement\\" and r._value != \\"_field\\") |> yield(name: \\"tags\\") from(bucket: bucket) |> range(start: start_range) |> filter(fn: (r) => r[\\"_measurement\\"] == measurement) |> keep(fn: (column) => column == \\"_field\\" or column == \\"_value\\") |> unique(column: \\"_field\\") |> yield(name: \\"fields\\")", "type":"flux", "dialect":{"header":true,"delimiter":",","annotations":["datatype","group","default"],"commentPrefix":"#","dateTimeFormat":"RFC3339"}}`,
     })
 
     expect(fields).toHaveLength(11)
