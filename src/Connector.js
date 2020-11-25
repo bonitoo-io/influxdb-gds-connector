@@ -31,7 +31,6 @@ function isAdminUser() {
 function getFields(request, cached, client) {
   validateConfig(request.configParams)
 
-  const cache = CacheService.getScriptCache()
   const cacheKey = [
     request.configParams.INFLUXDB_URL,
     request.configParams.INFLUXDB_BUCKET,
@@ -39,7 +38,7 @@ function getFields(request, cached, client) {
   ].join('#')
 
   if (cached) {
-    const cachedSchema = JSON.parse(cache.get(cacheKey))
+    const cachedSchema = getCachedSchema(cacheKey)
     if (cachedSchema !== null) {
       Logger.log(
         'Use cached schema for key: %s, schema: %s',
@@ -52,14 +51,8 @@ function getFields(request, cached, client) {
 
   try {
     let fields = client.getFields(request.configParams)
-    let cacheValue = JSON.stringify(fields)
 
-    Logger.log(
-      'Store cached schema for key: %s, schema: %s',
-      cacheKey,
-      cacheValue
-    )
-    cache.put(cacheKey, cacheValue)
+    putCachedSchema(cacheKey, fields)
 
     return fields
   } catch (e) {
@@ -221,7 +214,7 @@ function getData(request) {
       fieldsFiltered
     )
 
-    Logger.log('GetData took: "%s" milliseconds. [%s]', new Date() - start)
+    Logger.log('GetData took: "%s" milliseconds.', new Date() - start)
 
     return {
       schema: fieldsFiltered,
@@ -262,6 +255,48 @@ function throwUserError(message, error) {
     .setText(message)
     .setDebugText(error)
     .throwException()
+}
+
+function getCachedSchema(key) {
+  const cache = CacheService.getScriptCache()
+
+  let cached = cache.get(hashKey(key))
+  if (cached) {
+    let bytes = Utilities.base64Decode(cached)
+    let blob_gzip = Utilities.newBlob(bytes, 'application/x-gzip')
+    let data_as_string = Utilities.ungzip(blob_gzip).getDataAsString()
+    return JSON.parse(data_as_string)
+  }
+
+  return null
+}
+
+function putCachedSchema(key, fields) {
+  const cache = CacheService.getScriptCache()
+
+  try {
+    const cacheValue = JSON.stringify(fields)
+    let blob_zipped = Utilities.gzip(Utilities.newBlob(cacheValue))
+    let encoded_bytes = Utilities.base64Encode(blob_zipped.getBytes())
+
+    let keyHash = hashKey(key)
+    Logger.log(
+      'Store cached schema for key: %s, schema: %s',
+      keyHash,
+      cacheValue
+    )
+    cache.put(keyHash, encoded_bytes)
+  } catch (e) {
+    console.log(e)
+  }
+}
+
+function hashKey(key) {
+  const digest = Utilities.computeDigest(
+    Utilities.DigestAlgorithm.MD5,
+    key + ''
+  )
+  return Utilities.base64Encode(digest)
 }
 
 // Needed for testing

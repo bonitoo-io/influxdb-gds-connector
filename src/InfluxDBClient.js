@@ -14,7 +14,8 @@ v1.tagValues(
 )`
 
 const QUERY_SCHEMA = (bucket_name, measurement_name) => {
-  let query = `import \\"influxdata/influxdb/v1\\" ` +
+  let query =
+    `import \\"influxdata/influxdb/v1\\" ` +
     `bucket = \\"${bucket_name}\\" ` +
     `measurement = \\"${measurement_name}\\" ` +
     `start_range = duration(v: uint(v: 1970-01-01) - uint(v: now())) ` +

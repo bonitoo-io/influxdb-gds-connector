@@ -11,6 +11,16 @@ cache.put = jest.fn()
 CacheService = jest.fn()
 CacheService.getScriptCache = jest.fn(() => cache)
 
+Utilities = jest.fn()
+Utilities.DigestAlgorithm = jest.fn()
+Utilities.Charset = jest.fn()
+Utilities.computeDigest = jest.fn(it => it)
+Utilities.base64Encode = jest.fn(it => it)
+let blob = {}
+blob.getBytes = jest.fn(it => it)
+Utilities.newBlob = jest.fn(() => blob)
+Utilities.gzip = jest.fn(it => it)
+
 InfluxDBClient = jest.fn().mockImplementation(() => {
   return {
     validateConfig: jest.fn(),
